@@ -77,8 +77,8 @@ fun MessageCard(msg: Message) {
         Column(modifier = Modifier.clickable { isExpanded = !isExpanded }) {
             Text (
                 text = msg.author,
-                color = MaterialTheme.colorScheme.secondary,
-                style = MaterialTheme.typography.titleSmall
+                color = MaterialTheme.colorScheme.tertiary,
+                style = MaterialTheme.typography.titleMedium
             )
 
             Spacer(modifier = Modifier.height(4.dp))
