@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import android.content.res.Configuration
 import android.os.Bundle
+import android.widget.Space
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Text
@@ -34,6 +35,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.font.FontWeight
+import kotlin.math.exp
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Button
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import kotlinx.serialization.Serializable
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +62,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 Surface {
-                    Conversation(SampleData.conversationSample)
+                    AppStart()
                 }
             }
         }
@@ -49,6 +70,93 @@ class MainActivity : ComponentActivity() {
 }
 
 data class Message(val author: String, val body: String, val picture: Int)
+
+@Serializable
+object WelcomeScreen
+@Serializable
+object MainScreen
+
+@Composable
+fun AppStart (
+    modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController(),
+) {
+    NavHost(
+        modifier = modifier,
+        navController = navController,
+        startDestination = WelcomeScreen
+    ) {
+        composable<WelcomeScreen> {
+            WelcomeScreen(
+                onNavigateToWelcome = { navController.navigate(route = MainScreen) },
+            )
+        }
+        composable<MainScreen> {
+            SecondScreen(
+                onBackButton = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+@Composable
+fun WelcomeScreen(
+    onNavigateToWelcome: () -> Unit,
+    modifier: Modifier = Modifier,
+    ){
+
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Welcome!")
+        Button(
+            modifier = Modifier
+                .padding(vertical = 24.dp),
+            onClick = onNavigateToWelcome
+        ) {
+            Text("Continuer")
+        }
+    }
+}
+
+@Composable
+fun SecondScreen(onBackButton: () -> Unit){
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .padding(8.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = onBackButton,
+                ) {
+                    Text("Back")
+                }
+                Spacer(modifier = Modifier.width(80.dp))
+                Text(
+                    textAlign = TextAlign.End,
+                    text = "Hello",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
+        }
+        Conversation(SampleData.conversationSample)
+    }
+
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 320)
+@Composable
+fun WelcomeScreenPreview() {
+    MyApplicationTheme {
+        WelcomeScreen(onNavigateToWelcome = {})
+    }
+}
 
 @Composable
 fun MessageCard(msg: Message) {
@@ -94,7 +202,7 @@ fun MessageCard(msg: Message) {
                 Text(
                     text = msg.body,
                     modifier = Modifier.padding(all = 4.dp),
-                    // if the message is expanded, we display all its conent
+                    // if the message is expanded, we display all its content
                     // otherwise we only display the first line
                     maxLines = if (isExpanded) Int.MAX_VALUE else 1,
                     style = MaterialTheme.typography.bodyMedium
@@ -131,10 +239,17 @@ fun Conversation(messages: List<Message>){
     }
 }
 
-@Preview
+@Preview ( name = "Light mode")
+@Preview(
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true,
+    name = "Dark Mode"
+)
 @Composable
-fun PreviewConversation() {
+fun PreviewSecondScreen() {
     MyApplicationTheme {
-        Conversation(SampleData.conversationSample)
+        Surface {
+            SecondScreen( {} )
+        }
     }
 }
