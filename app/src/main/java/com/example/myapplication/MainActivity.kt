@@ -1,17 +1,19 @@
 package com.example.myapplication
 
-import android.app.Application
+import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Paint
-import android.media.Image
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Spacer
@@ -29,7 +31,7 @@ import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import com.example.myapplication.ui.theme.SampleData
+import com.example.myapplication.ui.theme.getSampleData
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,37 +45,49 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.TextField
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.focus.focusModifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.room.ColumnInfo
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Delete
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
-import androidx.room.Query
 import androidx.room.Room
-import androidx.room.RoomDatabase
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import java.io.File
+
+private var userName: String = "User"
+private var imageUri: Uri? = null
+
+private object GlobalState {
+    var profile_picture = mutableStateOf<Uri?>(null)
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        val db = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java, "AppDatabad"
-        ).build()
-
-        val user1 = User(userName = "John Doe", profilePicture = 23)
-        val user = db.userDao().findByName("John Doe")
+        val db: AppDatabase = AppDatabase.getDatabase(applicationContext)
+        lifecycleScope.launch {
+            val userDao = db.userDao()
+            val tempName = userDao.getUser()?.userName
+            if (tempName != null){
+                userName = tempName
+            }
+            imageUri = loadSavedPFP(applicationContext)
+        }
         super.onCreate(savedInstanceState)
         setContent {
             MyApplicationTheme {
@@ -87,10 +101,7 @@ class MainActivity : ComponentActivity() {
 }
 
 
-data class Message(val author: String, val body: String, val picture: Int)
-private val Username: String = "User"
-
-
+data class Message(val author: String, val body: String, val picture: Any)
 
 @Serializable
 object WelcomeScreen
@@ -160,14 +171,40 @@ fun WelcomeScreen(
                 .padding(vertical = 24.dp),
             onClick = onNavigateToWelcome
         ) {
-            Text("Continue")
+            Text("Continues")
         }
     }
 }
-
 @Composable
 fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
 
+    val context = LocalContext.current
+    val userDao = db.userDao()
+    val coroutineScope = rememberCoroutineScope() // Remember a coroutine scope
+
+    var local_imageUri by remember { mutableStateOf(imageUri) }
+
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+
+        if (uri != null) {
+            local_imageUri = uri
+            Log.d("PhotoPicker", "Selected mediaURI!: $uri")
+        } else {
+            Log.d("PhotoPicker", "No media selected")
+        }
+    }
+
+
+    var newUserName by rememberSaveable { mutableStateOf(userName) }
+
+    LaunchedEffect(Unit) {
+        val fetchedName = withContext(Dispatchers.IO) {
+            userDao.getUser()?.userName ?: userName
+        }
+        newUserName = fetchedName
+    }
+
+    val newUser = User(userName = newUserName, profilePicture = R.drawable.harrypotter_512x512_)
 
 
 
@@ -181,16 +218,27 @@ fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
                 contentAlignment = Alignment.Center
             )
             {
-                Image(
-                    painter = painterResource(R.drawable.dobby_512x512_),
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(local_imageUri ?: R.drawable.dobby_512x512_)
+                        .crossfade(false)
+                        .build(),
+                    loading = {
+                        CircularProgressIndicator()
+                    },
                     contentDescription = "Profile picture",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        // Set image size to 40 dp
                         .size(100.dp)
-                        // Clip image to be shaped as a circle
                         .clip(CircleShape)
                         .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                        .clickable(onClick = { }),
+                        .clickable(onClick = {
+                            pickMedia.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        }),
                 )
             }
         },
@@ -202,15 +250,22 @@ fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
                 contentAlignment = Alignment.Center,
             ) {
                 TextField(
-                    value = "test",
-                    onValueChange = {
-
-                                    },
+                    value = newUserName,
+                    onValueChange = { newUserName = it },
                     label = { Text("Username") },
                 )
             }
             Button( onClick = {
+                coroutineScope.launch(Dispatchers.IO) {
+                    db.userDao().deleteAllUsers()
+                    userName = newUser.userName
+                    db.userDao().insert(newUser)
 
+                    local_imageUri?.let {
+                        savePFP(context, it)
+                    }
+                    imageUri = local_imageUri
+                }
             }) {
                 Text(text = "Save")
             }
@@ -226,10 +281,37 @@ fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
     )
 }
 
+
+fun savePFP(context: Context, uri: Uri, fileName: String = "profile_picture.jpg") {
+
+    val resolver = context.contentResolver
+    val file = File(context.filesDir, fileName)
+
+    resolver.openInputStream(uri)?.use { stream ->
+        context.openFileOutput(file.name, Context.MODE_PRIVATE).use { output ->
+            stream.copyTo(output)
+        }
+    }
+    Log.d("ProfilePicture", "Image saved to: ${file.absolutePath}")
+}
+
+
+fun loadSavedPFP(context: Context, fileName: String = "profile_picture.jpg"): Uri? {
+    val file = File(context.filesDir, fileName)
+    if (file.exists()) {
+        val uri = Uri.fromFile(file)
+        Log.d("PhotoLoader", "found: $uri")
+        return uri
+    } else {
+        Log.d("PhotoLoader", "uri not found")
+        return null
+    }
+}
+
 @Composable
 @Preview
 fun ProfileScreenPreview(){
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val db = remember {
         Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries() // Only for testing! Don't use in production.
@@ -244,10 +326,15 @@ fun ProfileScreenPreview(){
 
 @Composable
 fun SecondScreen(onBackButton: () -> Unit, onProfileButton: () -> Unit){
-
+    var localImageUri: Any
+    if (imageUri != null) {
+        localImageUri = imageUri as Uri
+    } else {
+        localImageUri = R.drawable.harrypotter_512x512_
+    }
     TopHeaderAndContent(
         getDefaultHeaderContent(onBackButton = onBackButton, onProfileButton = onProfileButton),
-        listOf({Conversation(SampleData.conversationSample)}))
+        listOf({Conversation(getSampleData(userName, localImageUri))}))
 }
 
 
@@ -256,7 +343,6 @@ fun getDefaultHeaderContent(
     midText: String = "Hello",
     onBackButton: () -> Unit,
     onProfileButton: () -> Unit,
-    image: Int = R.drawable.dobby_512x512_
 ): List<@Composable () -> Unit> {
     return listOf(
         {
@@ -282,16 +368,19 @@ fun getDefaultHeaderContent(
                     .padding(end = 5.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
-                Image(
-                    painter = painterResource(image),
-                    contentDescription = "Profile picture",
-                    modifier = Modifier
-                        // Set image size to 40 dp
-                        .size(50.dp)
-                        // Clip image to be shaped as a circle
-                        .clip(CircleShape)
-                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                        .clickable(onClick = onProfileButton),
+                AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUri)
+                            .crossfade(true)
+                            .build(),
+                placeholder = painterResource(R.drawable.dobby_512x512_),
+                contentDescription = "Profile picture",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .clickable(onClick = onProfileButton),
                 )
             }
         }
@@ -338,7 +427,9 @@ fun TopHeaderAndContent(
 fun PreviewTopHeader(){
     MyApplicationTheme {
         Surface {
-            TopHeaderAndContent(getDefaultHeaderContent(onBackButton = {}, onProfileButton = {}), listOf({Conversation(SampleData.conversationSample)}))
+            TopHeaderAndContent(
+                getDefaultHeaderContent(onBackButton = {}, onProfileButton = {}),
+                listOf({Conversation(getSampleData(userName, R.drawable.dobby_512x512_))}))
         }
     }
 }
@@ -347,16 +438,38 @@ fun PreviewTopHeader(){
 fun MessageCard(msg: Message) {
     // Add padding around our message
     Row(modifier = Modifier.padding(all = 8.dp)) {
-        Image(
-            painter = painterResource(msg.picture),
-            contentDescription = null,
-            modifier = Modifier
-                // Set image size to 40 dp
-                .size(40.dp)
-                // Clip image to be shaped as a circle
-                .clip(CircleShape)
-                .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-        )
+        Log.d("msg.picture", "msg.picture: ${msg.picture}")
+        when (msg.picture) {
+            is Uri ->
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageUri)
+                        .crossfade(true)
+                        .build(),
+                    placeholder = painterResource(R.drawable.harrypotter_512x512_),
+                    contentDescription = "Profile picture",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+            else ->
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(msg.picture)
+                        .crossfade(true)
+                        .build(),
+                    placeholder = painterResource(R.drawable.harrypotter_512x512_),
+                    contentDescription = "Profile picture",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+        }
+
         // Add a horizontal space between the image and the column
         Spacer(modifier = Modifier.width(8.dp))
 
@@ -421,6 +534,7 @@ fun PreviewMessageCard() {
 fun Conversation(messages: List<Message>){
     LazyColumn {
         items(messages) {message ->
+            message.author
             MessageCard(message)
         }
     }

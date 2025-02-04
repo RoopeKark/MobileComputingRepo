@@ -4,10 +4,11 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity
+@Entity(tableName = "user_table")
 data class User(
-    @PrimaryKey(autoGenerate = true) val uid: Int = 0,
-    @ColumnInfo(name = "user_name") val userName: String?,
-    @ColumnInfo(name = "pf_picture") val profilePicture: Int?
+    @PrimaryKey(autoGenerate = true) val userId: Int = 0,
+    @ColumnInfo(name = "user_name") val userName: String,
+    @ColumnInfo(name = "pfp") val profilePicture: Int
 )
+
 

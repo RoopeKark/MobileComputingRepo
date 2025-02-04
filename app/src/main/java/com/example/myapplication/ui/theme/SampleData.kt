@@ -1,22 +1,30 @@
 package com.example.myapplication.ui.theme
+import android.net.Uri
 import com.example.myapplication.Message
 import com.example.myapplication.R
 
-object SampleData {
-    private val picture1 = R.drawable.dobby_512x512_
-    private val picture2 = R.drawable.harrypotter_512x512_
-    private const val USER1 = "Dobby"
-    private const val USER2 = "Harry Potter"
-    // Sample conversation data
+fun getSampleData(userName: String, pfp: Any): List<Message> {
+    val picture1: Int = R.drawable.dobby_512x512_
+    val USER1: String = "Dobby"
+    var picture2: Any = 0
+    when (pfp) {
+        is Int ->
+            picture2 = if(pfp == 0) {R.drawable.harrypotter_512x512_} else { pfp }
+        is Uri ->
+            picture2 = if(pfp == null) {R.drawable.harrypotter_512x512_} else { pfp }
+    }
+
+    val USER2 = userName
+
     val conversationSample = listOf(
         Message(
             USER1,
-            "Hello Mister Harry Potter",
+            "Hello Mister $USER2",
             picture1
         ),
         Message(
             USER2,
-            "Hey Dobby, what you up to",
+            "Hey ${USER1}, what you up to",
             picture2
         ),
         Message(
@@ -65,7 +73,7 @@ object SampleData {
         ),
         Message(
             USER1,
-            "Good! But I must leave now Mister Potter",
+            "Good! But I must leave now $USER2",
             picture1
         ),
         Message(
@@ -79,4 +87,5 @@ object SampleData {
             picture1
         ),
     )
+    return conversationSample
 }

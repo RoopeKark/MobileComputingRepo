@@ -43,7 +43,7 @@ android {
 }
 
 dependencies {
-
+    val room_version = "2.6.1"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -79,9 +79,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     //ImageCoil
-    implementation(libs.coil.compose)
+    implementation("io.coil-kt.coil3:coil-compose:3.0.4")
 
     //Room
-    ksp(libs.androidx.room.compiler.v250)
-
+    ksp("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
 }

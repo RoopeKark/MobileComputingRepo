@@ -4,23 +4,31 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
-    @Query("SELECT * FROM user")
-    fun getAll(): List<User>
 
-    @Query("SELECT * FROM user WHERE uid IN (:userIds)")
-    fun loadAllByIds(userIds: IntArray): List<User>
-
-    @Query("SELECT * FROM user WHERE user_name LIKE :first")
-    fun findByName(first: String): User
+    @Query("DELETE FROM user_table")
+    suspend fun deleteAllUsers()
 
     @Insert
-    fun insertAll(vararg users: User)
+    suspend fun insert(user: User)
+
+    @Update
+    suspend fun update(user: User)
 
     @Delete
-    fun delete(user: User)
+    suspend fun delete(user: User)
 
+    @Query("SELECT * FROM user_table WHERE userId = :id")
+    suspend fun getUserById(id: Int): User?
+
+    @Query("SELECT * FROM user_table ORDER BY user_name ASC")
+    fun getAllUsers(): Flow<List<User>>
+
+    @Query("SELECT * FROM user_table ORDER BY userId DESC LIMIT 1")
+    suspend fun getUser(): User?
 }
 
