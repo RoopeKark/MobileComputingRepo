@@ -6,12 +6,12 @@ import com.example.myapplication.R
 fun getSampleData(userName: String, pfp: Any): List<Message> {
     val picture1: Int = R.drawable.dobby_512x512_
     val USER1: String = "Dobby"
-    var picture2: Any = 0
+    var picture2: Any
     when (pfp) {
-        is Int ->
-            picture2 = if(pfp == 0) {R.drawable.harrypotter_512x512_} else { pfp }
         is Uri ->
-            picture2 = if(pfp == null) {R.drawable.harrypotter_512x512_} else { pfp }
+            picture2 = pfp
+        else ->
+            picture2 = pfp
     }
 
     val USER2 = userName

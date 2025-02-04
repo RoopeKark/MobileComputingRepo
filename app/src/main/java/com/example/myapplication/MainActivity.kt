@@ -61,6 +61,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.room.Room
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -71,7 +72,7 @@ import kotlinx.serialization.Serializable
 import java.io.File
 
 private var userName: String = "User"
-private var imageUri: Uri? = null
+//private var imageUri: Uri? = null
 
 private object GlobalState {
     var profile_picture = mutableStateOf<Uri?>(null)
@@ -86,7 +87,8 @@ class MainActivity : ComponentActivity() {
             if (tempName != null){
                 userName = tempName
             }
-            imageUri = loadSavedPFP(applicationContext)
+            GlobalState.profile_picture.value = loadSavedPFP(applicationContext)
+            Log.d("PhotoLoader", "photo uri: ${GlobalState.profile_picture.value}")
         }
         super.onCreate(savedInstanceState)
         setContent {
@@ -182,7 +184,7 @@ fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
     val userDao = db.userDao()
     val coroutineScope = rememberCoroutineScope() // Remember a coroutine scope
 
-    var local_imageUri by remember { mutableStateOf(imageUri) }
+    var local_imageUri by remember { mutableStateOf(GlobalState.profile_picture.value) }
 
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
 
@@ -220,7 +222,7 @@ fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
             {
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(local_imageUri ?: R.drawable.dobby_512x512_)
+                        .data(local_imageUri)
                         .crossfade(false)
                         .build(),
                     loading = {
@@ -261,10 +263,11 @@ fun ProfileScreen(onBackButton: () -> Unit, db: AppDatabase) {
                     userName = newUser.userName
                     db.userDao().insert(newUser)
 
-                    local_imageUri?.let {
+                    GlobalState.profile_picture.value = local_imageUri
+
+                    GlobalState.profile_picture.value?.let {
                         savePFP(context, it)
                     }
-                    imageUri = local_imageUri
                 }
             }) {
                 Text(text = "Save")
@@ -327,10 +330,10 @@ fun ProfileScreenPreview(){
 @Composable
 fun SecondScreen(onBackButton: () -> Unit, onProfileButton: () -> Unit){
     var localImageUri: Any
-    if (imageUri != null) {
-        localImageUri = imageUri as Uri
+    if (GlobalState.profile_picture.value != null) {
+        localImageUri = GlobalState.profile_picture.value as Uri
     } else {
-        localImageUri = R.drawable.harrypotter_512x512_
+        localImageUri = AsyncImagePainter.State.Empty
     }
     TopHeaderAndContent(
         getDefaultHeaderContent(onBackButton = onBackButton, onProfileButton = onProfileButton),
@@ -370,10 +373,10 @@ fun getDefaultHeaderContent(
             ) {
                 AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageUri)
+                            .data(GlobalState.profile_picture.value)
                             .crossfade(true)
                             .build(),
-                placeholder = painterResource(R.drawable.dobby_512x512_),
+                //placeholder = painterResource(R.drawable.dobby_512x512_),
                 contentDescription = "Profile picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -443,10 +446,10 @@ fun MessageCard(msg: Message) {
             is Uri ->
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUri)
+                        .data(GlobalState.profile_picture.value)
                         .crossfade(true)
                         .build(),
-                    placeholder = painterResource(R.drawable.harrypotter_512x512_),
+                    //placeholder = painterResource(R.drawable.harrypotter_512x512_),
                     contentDescription = "Profile picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -460,7 +463,7 @@ fun MessageCard(msg: Message) {
                         .data(msg.picture)
                         .crossfade(true)
                         .build(),
-                    placeholder = painterResource(R.drawable.harrypotter_512x512_),
+                    //placeholder = painterResource(R.drawable.harrypotter_512x512_),
                     contentDescription = "Profile picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
